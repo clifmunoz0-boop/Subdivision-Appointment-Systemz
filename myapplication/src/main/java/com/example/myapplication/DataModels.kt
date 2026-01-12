@@ -24,3 +24,19 @@ data class EventSchedule(
     val time: String,
     val venue: String
 )
+
+data class CalendarEvent(
+    val id: Int,
+    val title: String,
+    val date: String,
+    val startTime: String,
+    val endTime: String,
+    val venue: String,
+    val description: String
+)
+
+data class Facility(
+    val id: Int,
+    val name: String,
+    val icon: String
+)
