@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountCircle
@@ -32,6 +33,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -42,6 +45,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -61,6 +66,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -74,21 +82,6 @@ val DarkBlueGray = Color(0xFF5A5C71)
 val LightLavender = Color(0xFFD8DBFA)
 val DeepNavy = Color(0xFF34394E)
 val MediumGray = Color(0xFF878DA5)
-
-// Data classes
-data class CommunityEvent(
-    val id: Int,
-    val title: String,
-    val timeRange: String,
-    val description: String,
-    val schedules: List<EventSchedule>
-)
-
-data class EventSchedule(
-    val date: String,
-    val time: String,
-    val venue: String
-)
 
 // Sample events data
 val sampleEvents = listOf(
@@ -167,7 +160,13 @@ class MainActivity : ComponentActivity() {
                     onSurface = DeepNavy
                 )
             ) {
-                ProfileSidebarApp()
+                var currentUser by remember { mutableStateOf<User?>(null) }
+                
+                if (currentUser == null) {
+                    LoginScreen(onLoginSuccess = { user -> currentUser = user })
+                } else {
+                    ProfileSidebarApp(currentUser!!, onLogout = { currentUser = null })
+                }
             }
         }
     }
@@ -175,7 +174,124 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileSidebarApp() {
+fun LoginScreen(onLoginSuccess: (User) -> Unit) {
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(LightLavender),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Welcome Back",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DeepNavy
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "Login to your account",
+                    fontSize = 14.sp,
+                    color = MediumGray
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DarkBlueGray,
+                        unfocusedBorderColor = LightLavender,
+                        focusedLabelColor = DarkBlueGray
+                    ),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = null,
+                                tint = DeepNavy
+                            )
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DarkBlueGray,
+                        unfocusedBorderColor = LightLavender,
+                        focusedLabelColor = DarkBlueGray
+                    ),
+                    singleLine = true
+                )
+
+                if (errorMessage.isNotEmpty()) {
+                    Text(
+                        text = errorMessage,
+                        color = Color.Red,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Button(
+                    onClick = {
+                        val user = UserRepository.authenticate(username, password)
+                        if (user != null) {
+                            onLoginSuccess(user)
+                        } else {
+                            errorMessage = "Invalid username or password"
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = DarkBlueGray),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Login", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileSidebarApp(user: User, onLogout: () -> Unit) {
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -184,8 +300,13 @@ fun ProfileSidebarApp() {
         drawerState = drawerState,
         drawerContent = {
             ProfileDrawerContent(
+                user = user,
                 onNavigate = { route ->
-                    navController.navigate(route)
+                    if (route == "logout") {
+                        onLogout()
+                    } else {
+                        navController.navigate(route)
+                    }
                     scope.launch { drawerState.close() }
                 }
             )
@@ -231,7 +352,7 @@ fun ProfileSidebarApp() {
                     composable("reservation") { Reservation() }
                     composable("reservations") { Reservations() }
                     composable("balance") { Balance() }
-                    composable("account") { Account() }
+                    composable("account") { Account(user) }
                 }
             }
         }
@@ -239,7 +360,7 @@ fun ProfileSidebarApp() {
 }
 
 @Composable
-fun ProfileDrawerContent(onNavigate: (String) -> Unit) {
+fun ProfileDrawerContent(user: User, onNavigate: (String) -> Unit) {
     ModalDrawerSheet(
         drawerContainerColor = LightLavender,
         modifier = Modifier.width(280.dp)
@@ -280,6 +401,12 @@ fun ProfileDrawerContent(onNavigate: (String) -> Unit) {
             )
 
             Spacer(modifier = Modifier.weight(1f))
+            
+            DrawerMenuItem(
+                icon = Icons.Default.Close,
+                title = "Logout",
+                onClick = { onNavigate("logout") }
+            )
 
             Row(
                 modifier = Modifier
@@ -299,7 +426,7 @@ fun ProfileDrawerContent(onNavigate: (String) -> Unit) {
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    text = "Charles LeKirk",
+                    text = user.name,
                     fontSize = 14.sp,
                     color = DeepNavy
                 )
@@ -628,7 +755,7 @@ fun Balance() {
 }
 
 @Composable
-fun Account() {
+fun Account(user: User) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -675,13 +802,13 @@ fun Account() {
 
                     Column {
                         Text(
-                            text = "Charles LeKirk",
+                            text = user.name,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = DeepNavy
                         )
                         Text(
-                            text = "Homeowner",
+                            text = user.role,
                             fontSize = 14.sp,
                             color = MediumGray
                         )
@@ -718,21 +845,21 @@ fun Account() {
 
                 AccountTextField(
                     label = "Username",
-                    value = "charleslekirk"
+                    value = user.username
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 AccountTextField(
                     label = "Email",
-                    value = "charleslekirk@gmail.com"
+                    value = user.email
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 AccountPasswordField(
                     label = "Password",
-                    value = "••••••••••••••••"
+                    value = user.password
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -773,11 +900,11 @@ fun Account() {
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        PersonalInfoRow("Name:", "Charles lekirk")
+                        PersonalInfoRow("Name:", user.name)
                         Spacer(modifier = Modifier.height(8.dp))
-                        PersonalInfoRow("Contact Num:", "09587653211")
+                        PersonalInfoRow("Contact Num:", user.contactNum)
                         Spacer(modifier = Modifier.height(8.dp))
-                        PersonalInfoRow("Address:", "Blk 20 Lot 21c Ginuntuang St.")
+                        PersonalInfoRow("Address:", user.address)
                     }
                 }
             }
@@ -837,7 +964,7 @@ fun AccountPasswordField(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (showPassword) "mypassword123" else value,
+                    text = if (showPassword) value else "••••••••••••••••",
                     fontSize = 14.sp,
                     color = DeepNavy
                 )
