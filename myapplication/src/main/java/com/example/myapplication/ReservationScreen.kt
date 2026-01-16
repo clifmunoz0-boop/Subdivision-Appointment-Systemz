@@ -308,33 +308,35 @@ fun Reservation(user: User, viewModel: ReservationViewModel = viewModel()) {
                     }
                 }
 
-                // Schedule Button
-                val isSelectedPast = isDateInPast(selectedYear, selectedMonth, selectedDate)
-                Button(
-                    onClick = { if (!isSelectedPast) showScheduleDialog = true },
-                    enabled = !isSelectedPast,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelectedPast) Color.LightGray else DarkBlueGray,
-                        disabledContainerColor = Color.LightGray
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Event,
-                        contentDescription = null,
-                        tint = if (isSelectedPast) Color.Gray else Color.White
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isSelectedPast) "Cannot Schedule Past Date" else "Schedule Facility",
-                        color = if (isSelectedPast) Color.Gray else Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
+                // Schedule Button - REMOVED FROM ADMIN SIDE ONLY
+                if (user.role != "Admin") {
+                    val isSelectedPast = isDateInPast(selectedYear, selectedMonth, selectedDate)
+                    Button(
+                        onClick = { if (!isSelectedPast) showScheduleDialog = true },
+                        enabled = !isSelectedPast,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .height(50.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isSelectedPast) Color.LightGray else DarkBlueGray,
+                            disabledContainerColor = Color.LightGray
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Event,
+                            contentDescription = null,
+                            tint = if (isSelectedPast) Color.Gray else Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isSelectedPast) "Cannot Schedule Past Date" else "Schedule Facility",
+                            color = if (isSelectedPast) Color.Gray else Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -491,9 +493,9 @@ fun CalendarEventItem(event: CalendarEvent, isAdmin: Boolean) {
 
             if (isAdmin && (event.reservedBy.isNotEmpty() || event.reserverPhone.isNotEmpty())) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Divider(color = DeepNavy.copy(alpha = 0.1f))
+                HorizontalDivider(color = DeepNavy.copy(alpha = 0.1f))
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Text(
                     text = "Reserved by: ${event.reservedBy}",
                     fontSize = 12.sp,
@@ -620,7 +622,7 @@ fun ScheduleFacilityDialog(
                 Text("Phone Number", fontSize = 12.sp, color = DeepNavy, fontWeight = FontWeight.Medium)
                 OutlinedTextField(
                     value = phoneNumber,
-                    onValueChange = { 
+                    onValueChange = {
                         // Strict 11-digit limit
                         if (it.length <= 11 && it.all { char -> char.isDigit() }) {
                             phoneNumber = it
@@ -786,7 +788,7 @@ fun ScheduleFacilityDialog(
 
                                 // Note: We do NOT add to calendarEvents here.
                                 // It will only be added once the admin "Accepts" it in the Approval Screen.
-                                
+
                                 onDismiss()
                             }
                         },

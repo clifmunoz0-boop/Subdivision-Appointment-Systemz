@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -50,7 +51,7 @@ data class ReservationItem(
     val reservedBy: String = "",
     val contact: String = "",
     val purpose: String = "",
-    val formattedDate: String = "" // Added for calendar sync
+    val formattedDate: String = ""
 )
 
 // --- 2. SHARED VIEWMODEL ---
@@ -78,8 +79,7 @@ class ReservationViewModel : ViewModel() {
         if (index != -1) {
             val item = _reservations[index]
             _reservations[index] = item.copy(status = newStatus)
-            
-            // If approved, add to the global calendar
+
             if (newStatus == ReservationStatus.ACTIVE) {
                 val times = item.time.split(" - ")
                 calendarEvents.add(
@@ -140,7 +140,7 @@ fun ProfileSidebarApp(user: User, viewModel: ReservationViewModel, onLogout: () 
         drawerContent = {
             ProfileDrawerContent(
                 user = user,
-                onNavigate = { route ->
+                onNavigate = { route: String ->
                     if (route == "logout") onLogout()
                     else {
                         currentRoute = route
@@ -179,7 +179,11 @@ fun ProfileSidebarApp(user: User, viewModel: ReservationViewModel, onLogout: () 
                 Box(modifier = Modifier.padding(padding)) {
                     NavHost(navController = navController, startDestination = "home") {
                         composable("home") { HomeScreen(user) }
-                        composable("reservation") { Reservation(user, viewModel) }
+                        composable("reservation") {
+                            // The "Schedule Facility" button removal is handled inside ReservationScreen logic
+                            // using the passed 'user' object role check.
+                            Reservation(user = user, viewModel = viewModel)
+                        }
                         composable("reservations") { Reservations(viewModel) }
                         composable("approval") { ApprovalScreen(viewModel) }
                         composable("account") { Account(user) }
@@ -196,9 +200,12 @@ fun ProfileSidebarApp(user: User, viewModel: ReservationViewModel, onLogout: () 
 fun ApprovalScreen(viewModel: ReservationViewModel) {
     val pendingReservations = viewModel.reservations.filter { it.status == ReservationStatus.PENDING }
 
-    Column(modifier = Modifier.fillMaxSize().background(LightLavender).padding(16.dp)) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .background(LightLavender)
+        .padding(16.dp)) {
         Text("Pending Requests", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DeepNavy, modifier = Modifier.padding(bottom = 16.dp))
-        
+
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(pendingReservations) { item ->
                 ApprovalCard(item, onAccept = {
@@ -237,12 +244,12 @@ fun ApprovalCard(reservation: ReservationItem, onAccept: () -> Unit, onReject: (
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Divider(color = Color.LightGray.copy(alpha = 0.5f))
+            HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
             Spacer(Modifier.height(12.dp))
             Text("Reserved by: ${reservation.reservedBy}", fontSize = 14.sp, color = DeepNavy)
             Text("Contact: ${reservation.contact}", fontSize = 14.sp, color = DeepNavy)
             Text("Purpose: ${reservation.purpose}", fontSize = 14.sp, color = DeepNavy)
-            
+
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
                 Button(onClick = onReject, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE74C3C)), shape = RoundedCornerShape(8.dp)) {
@@ -268,9 +275,14 @@ fun Reservations(viewModel: ReservationViewModel) {
         else allReservations.filter { it.status == selectedFilter }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(LightLavender).padding(16.dp)) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .background(LightLavender)
+        .padding(16.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             FilterChipItem("All", selectedFilter == null) { selectedFilter = null }
@@ -333,13 +345,13 @@ fun ProfileDrawerContent(user: User, onNavigate: (String) -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(vertical = 24.dp)) {
             DrawerMenuItem(Icons.Default.Home, "Home") { onNavigate("home") }
             DrawerMenuItem(Icons.Default.CalendarMonth, "Make a Reservation") { onNavigate("reservation") }
-            
+
             if (user.role == "Admin") {
                 DrawerMenuItem(Icons.Default.Rule, "Approval Request") { onNavigate("approval") }
             } else {
                 DrawerMenuItem(Icons.Default.Event, "Reservations") { onNavigate("reservations") }
             }
-            
+
             DrawerMenuItem(Icons.Default.Person, "My Account") { onNavigate("account") }
             Spacer(Modifier.weight(1f))
             DrawerMenuItem(Icons.Default.Close, "Logout") { onNavigate("logout") }
