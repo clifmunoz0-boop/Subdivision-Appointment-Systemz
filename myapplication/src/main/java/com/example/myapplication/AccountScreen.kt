@@ -14,12 +14,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.delay
 
 @Composable
 fun Account(user: User) {
+    var showPasswordDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -90,21 +96,31 @@ fun Account(user: User) {
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 12.dp)
+                    modifier = Modifier.padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = DeepNavy,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Login Credentials",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = DeepNavy
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = DeepNavy,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Login Credentials",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = DeepNavy
+                        )
+                    }
+                    
+                    // Change Password Button (Users only)
+                    if (user.role != "Admin") {
+                        TextButton(onClick = { showPasswordDialog = true }) {
+                            Text("Change Password", color = DarkBlueGray, fontSize = 12.sp)
+                        }
+                    }
                 }
 
                 AccountTextField(
@@ -169,6 +185,111 @@ fun Account(user: User) {
                         PersonalInfoRow("Contact Num:", user.contactNum)
                         Spacer(modifier = Modifier.height(8.dp))
                         PersonalInfoRow("Address:", user.address)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showPasswordDialog) {
+        ChangePasswordDialog(
+            user = user,
+            onDismiss = { showPasswordDialog = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChangePasswordDialog(user: User, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
+    var successMessage by remember { mutableStateOf("") }
+
+    // Automatically close dialog after success
+    if (successMessage.isNotEmpty()) {
+        LaunchedEffect(Unit) {
+            delay(1500)
+            onDismiss()
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text("Change Password", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DeepNavy)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = currentPassword,
+                    onValueChange = { currentPassword = it },
+                    label = { Text("Current Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = { Text("New Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = { Text("Confirm New Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                if (errorMessage.isNotEmpty()) {
+                    Text(errorMessage, color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+                if (successMessage.isNotEmpty()) {
+                    Text(successMessage, color = Color(0xFF2ECC71), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.LightGray)
+                    ) {
+                        Text("Cancel", color = Color.DarkGray)
+                    }
+                    Button(
+                        onClick = {
+                            when {
+                                currentPassword != user.password -> errorMessage = "Incorrect current password"
+                                newPassword.isEmpty() -> errorMessage = "New password cannot be empty"
+                                newPassword != confirmPassword -> errorMessage = "Passwords do not match"
+                                else -> {
+                                    UserRepository.updatePassword(context, user.username, newPassword)
+                                    errorMessage = ""
+                                    successMessage = "Password updated successfully!"
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = DarkBlueGray)
+                    ) {
+                        Text("Update")
                     }
                 }
             }

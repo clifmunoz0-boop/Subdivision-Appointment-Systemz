@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -110,7 +111,6 @@ fun HomeScreen(user: User) {
                 )
             }
             
-            // Extra space at bottom
             item { Spacer(modifier = Modifier.height(100.dp)) }
         }
 
@@ -136,7 +136,6 @@ fun HomeScreen(user: User) {
             }
         }
 
-        // Admin-only Add Event Button
         if (user.role == "Admin") {
             LargeFloatingActionButton(
                 onClick = { showAddEventDialog = true },
@@ -174,34 +173,36 @@ fun AddEventDialog(onDismiss: () -> Unit) {
     var purpose by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
     var expandedVenue by remember { mutableStateOf(false) }
-    var expandedDate by remember { mutableStateOf(false) }
     
-    // Generate dates for the current month
     val calendar = Calendar.getInstance()
     val currentMonth = calendar.get(Calendar.MONTH)
     val currentYear = calendar.get(Calendar.YEAR)
     val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
     val currentDay = calendar.get(Calendar.DAY_OF_MONTH)
     
-    val monthNames = listOf("January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December")
+    val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    val monthFullNames = listOf("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
     
-    val availableDates = (currentDay..daysInMonth).map { day ->
-        String.format(Locale.US, "%s %d, %d", monthNames[currentMonth], day, currentYear)
+    val availableDatesInfo = (currentDay..daysInMonth).map { day ->
+        val cal = Calendar.getInstance()
+        cal.set(currentYear, currentMonth, day)
+        val dayName = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT, Locale.US) ?: ""
+        val fullDate = String.format(Locale.US, "%s %d, %d", monthFullNames[currentMonth], day, currentYear)
+        Triple(day, dayName, fullDate)
     }
     
-    var selectedDate by remember { mutableStateOf(availableDates.first()) }
+    var selectedDate by remember { mutableStateOf(availableDatesInfo.first().third) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(28.dp),
             color = Color.White,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                .fillMaxWidth(0.98f)
+                .padding(vertical = 16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp)
+                modifier = Modifier.padding(24.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -209,8 +210,8 @@ fun AddEventDialog(onDismiss: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Add New Event",
-                        fontSize = 22.sp,
+                        text = "Create Event",
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = DeepNavy
                     )
@@ -219,46 +220,57 @@ fun AddEventDialog(onDismiss: () -> Unit) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // Date Selection Dropdown
-                Text("Select Date", fontSize = 12.sp, color = DeepNavy, fontWeight = FontWeight.Medium)
-                ExposedDropdownMenuBox(
-                    expanded = expandedDate,
-                    onExpandedChange = { expandedDate = !expandedDate },
-                    modifier = Modifier.fillMaxWidth()
+                // Modern Horizontal Date Selector
+                Text("Select Date", fontSize = 13.sp, color = DeepNavy, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 2.dp)
                 ) {
-                    OutlinedTextField(
-                        value = selectedDate,
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDate) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFE8EBFA),
-                            unfocusedContainerColor = Color(0xFFE8EBFA),
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent
-                        ),
-                        modifier = Modifier.menuAnchor().fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    ExposedDropdownMenu(expanded = expandedDate, onDismissRequest = { expandedDate = false }) {
-                        availableDates.forEach { date ->
-                            DropdownMenuItem(
-                                text = { Text(date) },
-                                onClick = {
-                                    selectedDate = date
-                                    expandedDate = false
-                                }
-                            )
+                    items(availableDatesInfo) { info ->
+                        val isSelected = selectedDate == info.third
+                        Card(
+                            onClick = { selectedDate = info.third },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) DarkBlueGray else Color(0xFFF0F2FA)
+                            ),
+                            modifier = Modifier.width(60.dp).height(75.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = info.second.uppercase(),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else MediumGray
+                                )
+                                Text(
+                                    text = info.first.toString(),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (isSelected) Color.White else DeepNavy
+                                )
+                                Text(
+                                    text = monthNames[currentMonth],
+                                    fontSize = 10.sp,
+                                    color = if (isSelected) Color.White.copy(alpha = 0.8f) else MediumGray
+                                )
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // Dropdown for Facility (Venue)
-                Text("Select Venue", fontSize = 12.sp, color = DeepNavy, fontWeight = FontWeight.Medium)
+                // Dropdown for Venue
+                Text("Venue", fontSize = 13.sp, color = DeepNavy, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
                 ExposedDropdownMenuBox(
                     expanded = expandedVenue,
                     onExpandedChange = { expandedVenue = !expandedVenue },
@@ -291,9 +303,10 @@ fun AddEventDialog(onDismiss: () -> Unit) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Event Purpose / Title", fontSize = 12.sp, color = DeepNavy, fontWeight = FontWeight.Medium)
+                Text("Event Title", fontSize = 13.sp, color = DeepNavy, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = purpose,
                     onValueChange = { purpose = it },
@@ -309,24 +322,24 @@ fun AddEventDialog(onDismiss: () -> Unit) {
                     placeholder = { Text("e.g. General Assembly", fontSize = 14.sp) }
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 // Time Slots
-                Text("Available Time Slots", fontSize = 12.sp, color = DeepNavy, fontWeight = FontWeight.Medium)
+                Text("Time Slots", fontSize = 13.sp, color = DeepNavy, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    modifier = Modifier.height(200.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    modifier = Modifier.height(180.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(timeSlots) { slot ->
                         val isSelected = selectedTimeSlots.contains(slot)
                         Box(
                             modifier = Modifier
-                                .height(55.dp) // FIXED HEIGHT for all slots
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(if (isSelected) Color(0xFF1E88E5) else Color(0xFFE0F2F1))
+                                .height(50.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) Color(0xFF1E88E5) else Color(0xFFE8EBFA))
                                 .clickable {
                                     selectedTimeSlots = if (isSelected) selectedTimeSlots - slot else selectedTimeSlots + slot
                                 }
@@ -335,18 +348,8 @@ fun AddEventDialog(onDismiss: () -> Unit) {
                         ) {
                             val times = slot.split(" - ")
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = times[0],
-                                    fontSize = 8.sp,
-                                    color = if (isSelected) Color.White else Color(0xFF2E7D32),
-                                    textAlign = TextAlign.Center
-                                )
-                                Text(
-                                    text = "to ${times[1]}",
-                                    fontSize = 8.sp,
-                                    color = if (isSelected) Color.White else Color(0xFF2E7D32),
-                                    textAlign = TextAlign.Center
-                                )
+                                Text(times[0], fontSize = 8.sp, color = if (isSelected) Color.White else DeepNavy, textAlign = TextAlign.Center)
+                                Text("to ${times[1]}", fontSize = 8.sp, color = if (isSelected) Color.White else DeepNavy, textAlign = TextAlign.Center)
                             }
                         }
                     }
@@ -356,7 +359,7 @@ fun AddEventDialog(onDismiss: () -> Unit) {
                     Text(errorMessage, color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
                     onClick = {
@@ -378,11 +381,11 @@ fun AddEventDialog(onDismiss: () -> Unit) {
                             errorMessage = "Please fill all fields"
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = DarkBlueGray),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(14.dp)
                 ) {
-                    Text("Add Event", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Broadcast Event", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -519,9 +522,8 @@ fun ScheduleItem(schedule: EventSchedule) {
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(20.dp)
         ) {
-            // DATE and TIME now stacked vertically to prevent overlap
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Schedule,
@@ -555,7 +557,7 @@ fun ScheduleItem(schedule: EventSchedule) {
                     modifier = Modifier.size(18.dp),
                     tint = DarkBlueGray
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = schedule.venue,
                     fontSize = 14.sp,
