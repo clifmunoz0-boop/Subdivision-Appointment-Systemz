@@ -8,7 +8,8 @@ data class User(
     val email: String,
     val role: String,
     val contactNum: String,
-    val address: String
+    val address: String,
+    val profilePictureUri: String? = null
 )
 
 data class CommunityEvent(

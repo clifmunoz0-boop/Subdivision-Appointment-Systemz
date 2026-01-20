@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -53,7 +55,8 @@ data class ReservationItem(
     val reservedBy: String = "",
     val contact: String = "",
     val purpose: String = "",
-    val formattedDate: String = ""
+    val formattedDate: String = "",
+    val paymentProofUri: String? = null
 )
 
 // --- 2. SHARED VIEWMODEL ---
@@ -62,7 +65,7 @@ class ReservationViewModel : ViewModel() {
     private val _reservations = mutableStateListOf<ReservationItem>()
     val reservations: List<ReservationItem> get() = _reservations
 
-    fun addReservation(title: String, date: String, time: String, user: String, phone: String, note: String, formattedDate: String) {
+    fun addReservation(title: String, date: String, time: String, user: String, phone: String, note: String, formattedDate: String, paymentProof: String?) {
         val newItem = ReservationItem(
             title = title,
             date = date,
@@ -71,7 +74,8 @@ class ReservationViewModel : ViewModel() {
             reservedBy = user,
             contact = phone,
             purpose = note,
-            formattedDate = formattedDate
+            formattedDate = formattedDate,
+            paymentProofUri = paymentProof
         )
         _reservations.add(0, newItem)
     }
@@ -122,12 +126,14 @@ class MainActivity : ComponentActivity() {
                     surface = Color.White
                 )
             ) {
-                var currentUser by remember { mutableStateOf<User?>(null) }
+                var currentUsername by remember { mutableStateOf<String?>(null) }
+                // Re-find the user in the reactive list whenever currentUsername changes or the list itself changes
+                val currentUser = UserRepository.users.find { it.username == currentUsername }
 
                 if (currentUser == null) {
-                    LoginScreen(onLoginSuccess = { user -> currentUser = user })
+                    LoginScreen(onLoginSuccess = { user -> currentUsername = user.username })
                 } else {
-                    ProfileSidebarApp(currentUser!!, resViewModel, onLogout = { currentUser = null })
+                    ProfileSidebarApp(currentUser, resViewModel, onLogout = { currentUsername = null })
                 }
             }
         }
@@ -230,7 +236,16 @@ fun ProfileDrawerContent(user: User, onNavigate: (String) -> Unit) {
                         .background(DarkBlueGray),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                    if (user.profilePictureUri != null) {
+                        AsyncImage(
+                            model = user.profilePictureUri,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                    }
                 }
                 Spacer(Modifier.width(12.dp))
                 Column {
@@ -287,6 +302,8 @@ fun ApprovalScreen(viewModel: ReservationViewModel) {
 
 @Composable
 fun ApprovalCard(reservation: ReservationItem, onAccept: () -> Unit, onReject: () -> Unit) {
+    var showPaymentProof by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -310,6 +327,22 @@ fun ApprovalCard(reservation: ReservationItem, onAccept: () -> Unit, onReject: (
             Text("Contact: ${reservation.contact}", fontSize = 14.sp, color = DeepNavy)
             Text("Purpose: ${reservation.purpose}", fontSize = 14.sp, color = DeepNavy)
             
+            if (reservation.paymentProofUri != null) {
+                Spacer(Modifier.height(12.dp))
+                Text("Payment Proof:", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = DeepNavy)
+                Spacer(Modifier.height(4.dp))
+                AsyncImage(
+                    model = reservation.paymentProofUri,
+                    contentDescription = "Payment Proof",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { showPaymentProof = true },
+                    contentScale = ContentScale.Crop
+                )
+            }
+
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
                 Button(onClick = onReject, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE74C3C)), shape = RoundedCornerShape(8.dp)) {
@@ -317,6 +350,30 @@ fun ApprovalCard(reservation: ReservationItem, onAccept: () -> Unit, onReject: (
                 }
                 Button(onClick = onAccept, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen), shape = RoundedCornerShape(8.dp)) {
                     Text("Accept")
+                }
+            }
+        }
+    }
+
+    if (showPaymentProof && reservation.paymentProofUri != null) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showPaymentProof = false }) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        IconButton(onClick = { showPaymentProof = false }) {
+                            Icon(Icons.Default.Close, null)
+                        }
+                    }
+                    AsyncImage(
+                        model = reservation.paymentProofUri,
+                        contentDescription = "Full Payment Proof",
+                        modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+                        contentScale = ContentScale.Fit
+                    )
                 }
             }
         }

@@ -1,5 +1,8 @@
 package com.example.myapplication
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Event
@@ -22,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -29,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import java.util.*
 
 // Helper to convert time string to minutes for comparison
@@ -529,8 +536,33 @@ fun ScheduleFacilityDialog(
     var phoneNumber by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var showPaymentDialog by remember { mutableStateOf(false) }
 
     val formattedDate = String.format(Locale.US, "%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDate)
+
+    if (showPaymentDialog) {
+        val sortedSlots = selectedTimeSlots.toList().sortedBy { timeToMinutes(it.split(" - ")[0]) }
+        val startT = sortedSlots.first().split(" - ").first()
+        val endT = sortedSlots.last().split(" - ").last()
+        val displayDate = String.format(Locale.US, "%s %d, %d", monthNames[selectedMonth], selectedDate, selectedYear)
+
+        PaymentConfirmationDialog(
+            onConfirm = { proofUri ->
+                viewModel.addReservation(
+                    title = selectedFacility!!.name,
+                    date = displayDate,
+                    formattedDate = formattedDate,
+                    time = "$startT - $endT",
+                    user = user.name,
+                    phone = phoneNumber,
+                    note = purpose,
+                    paymentProof = proofUri
+                )
+                onDismiss()
+            },
+            onCancel = { showPaymentDialog = false }
+        )
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -770,26 +802,7 @@ fun ScheduleFacilityDialog(
                             } else if (phoneNumber.length < 11) {
                                 errorMessage = "Phone number must be exactly 11 digits"
                             } else {
-                                val sortedSlots = selectedTimeSlots.toList().sortedBy { timeToMinutes(it.split(" - ")[0]) }
-                                val startT = sortedSlots.first().split(" - ").first()
-                                val endT = sortedSlots.last().split(" - ").last()
-                                val displayDate = String.format(Locale.US, "%s %d, %d", monthNames[selectedMonth], selectedDate, selectedYear)
-
-                                // 1. Add to ViewModel (PENDING state) for Admin Approval
-                                viewModel.addReservation(
-                                    title = selectedFacility!!.name,
-                                    date = displayDate,
-                                    formattedDate = formattedDate, // Pass formatted date for sync
-                                    time = "$startT - $endT",
-                                    user = user.name,
-                                    phone = phoneNumber,
-                                    note = purpose
-                                )
-
-                                // Note: We do NOT add to calendarEvents here.
-                                // It will only be added once the admin "Accepts" it in the Approval Screen.
-
-                                onDismiss()
+                                showPaymentDialog = true
                             }
                         },
                         modifier = Modifier.weight(1f).height(45.dp),
@@ -797,6 +810,135 @@ fun ScheduleFacilityDialog(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("Confirm", color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PaymentConfirmationDialog(
+    onConfirm: (String?) -> Unit,
+    onCancel: () -> Unit
+) {
+    val context = LocalContext.current
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        selectedImageUri = uri
+    }
+
+    Dialog(onDismissRequest = onCancel) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color(0xFFF3EFFF), // Light lavender background like reference
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = "Payment Confirmation",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = "Please settle the payment to proceed:",
+                    fontSize = 14.sp,
+                    color = Color.DarkGray
+                )
+                Text(
+                    text = "GCash: 0912-345-6789",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DeepNavy
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    text = "Upload Receipt/Proof:",
+                    fontSize = 14.sp,
+                    color = Color.DarkGray
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFE8E4F3))
+                        .clickable { launcher.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selectedImageUri != null) {
+                        AsyncImage(
+                            model = selectedImageUri,
+                            contentDescription = "Proof of Payment",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.AddPhotoAlternate,
+                                contentDescription = null,
+                                tint = Color.Gray,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            Text(
+                                text = "Tap to upload photo",
+                                color = Color.Gray,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        onClick = onCancel,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancel", color = DeepNavy, fontWeight = FontWeight.Medium)
+                    }
+                    
+                    Button(
+                        onClick = {
+                            selectedImageUri?.let { uri ->
+                                val savedUri = UserRepository.saveReceiptImage(context, uri)
+                                onConfirm(savedUri)
+                            }
+                        },
+                        enabled = selectedImageUri != null,
+                        modifier = Modifier.weight(1.5f).height(45.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD1CBE9), // Light purple button
+                            disabledContainerColor = Color.LightGray.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Text(
+                            "Submit Reservation", 
+                            color = if (selectedImageUri != null) DeepNavy else Color.Gray,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
