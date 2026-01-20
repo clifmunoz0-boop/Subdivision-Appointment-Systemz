@@ -213,25 +213,17 @@ fun ProfileDrawerContent(user: User, onNavigate: (String) -> Unit) {
         drawerContentColor = Color.White
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(vertical = 24.dp)) {
-            DrawerMenuItem(Icons.Default.Home, "Home") { onNavigate("home") }
-            DrawerMenuItem(Icons.Default.CalendarMonth, "Make a Reservation") { onNavigate("reservation") }
-            
-            if (user.role == "Admin") {
-                DrawerMenuItem(Icons.AutoMirrored.Filled.Rule, "Approval Request") { onNavigate("approval") }
-            } else {
-                DrawerMenuItem(Icons.Default.Event, "Reservations") { onNavigate("reservations") }
-            }
-            
-            DrawerMenuItem(Icons.Default.Person, "My Account") { onNavigate("account") }
-            Spacer(Modifier.weight(1f))
-            DrawerMenuItem(Icons.AutoMirrored.Filled.Logout, "Logout") { onNavigate("logout") }
-            
-            HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 8.dp))
-            
-            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            // User Profile Section at the TOP - Now Clickable
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigate("account") }
+                    .padding(horizontal = 20.dp, vertical = 16.dp), 
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .background(DarkBlueGray),
                     contentAlignment = Alignment.Center
@@ -249,10 +241,30 @@ fun ProfileDrawerContent(user: User, onNavigate: (String) -> Unit) {
                 }
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text(user.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(user.role, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Text(user.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(user.role, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
                 }
             }
+
+            HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 8.dp))
+
+            // Navigation Items
+            DrawerMenuItem(Icons.Default.Home, "Home") { onNavigate("home") }
+            DrawerMenuItem(Icons.Default.CalendarMonth, "Make a Reservation") { onNavigate("reservation") }
+            
+            if (user.role == "Admin") {
+                DrawerMenuItem(Icons.AutoMirrored.Filled.Rule, "Approval Request") { onNavigate("approval") }
+            } else {
+                DrawerMenuItem(Icons.Default.Event, "Reservations") { onNavigate("reservations") }
+            }
+            
+            DrawerMenuItem(Icons.Default.Person, "My Account") { onNavigate("account") }
+            
+            Spacer(Modifier.weight(1f)) // Push logout to bottom
+
+            // Logout Section at the BOTTOM
+            HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 8.dp))
+            DrawerMenuItem(Icons.AutoMirrored.Filled.Logout, "Logout") { onNavigate("logout") }
         }
     }
 }
